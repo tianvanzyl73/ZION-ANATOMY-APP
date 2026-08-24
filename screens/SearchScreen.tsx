@@ -1,89 +1,122 @@
-import React, { useMemo, useState } from 'react';
-import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useState } from 'react';
+import {
+  View, Text, StyleSheet, TextInput, FlatList, TouchableOpacity, useColorScheme,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../lib/themeContext';
-import { BrandHeader, Card, Chip, EmptyState, SectionTitle } from '../components/ui';
-import { searchTopics, DOMAIN_LABELS } from '../lib/data/index';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Colors, BorderRadius, FontSizes } from '../lib/theme';
+import { searchTopics, AnatomyTopic } from '../lib/data';
 
 export default function SearchScreen({ navigation }: any) {
-  const { theme } = useTheme();
-  const [q, setQ] = useState('');
+  const isDark = useColorScheme() === 'dark';
+  const t = isDark ? Colors.dark : Colors.light;
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<AnatomyTopic[]>([]);
 
-  const results = useMemo(() => (q.trim() ? searchTopics(q, 30) : []), [q]);
-  const popular = ['Hamstring', 'Creatine', 'VO₂max', 'Mitochondria', 'Cortisol', 'Shoulder', 'Spine', 'Glute max', 'Diaphragm'];
+  const handleSearch = (text: string) => {
+    setQuery(text);
+    if (text.trim().length > 1) {
+      const found = searchTopics(text);
+      setResults(found);
+    } else {
+      setResults([]);
+    }
+  };
 
-  return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }} edges={['top']}>
-      <BrandHeader subtitle="Search every topic" />
-      <View style={{ paddingHorizontal: 18, marginTop: 6 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: theme.bgCard, borderRadius: 16, borderWidth: 1, borderColor: theme.border, paddingHorizontal: 12 }}>
-          <Ionicons name="search-outline" size={17} color={theme.textFaint} style={{ marginRight: 8 }} />
-          <TextInput
-            value={q}
-            onChangeText={setQ}
-            placeholder="Muscles, bones, hormones, nutrients…"
-            placeholderTextColor={theme.textFaint}
-            style={{ color: theme.text, flex: 1, fontSize: 14.5, paddingVertical: 12 }}
-            returnKeyType="search"
-            autoCorrect={false}
-          />
-          {q.length > 0 ? (
-            <TouchableOpacity onPress={() => setQ('')}>
-              <Ionicons name="close-circle" size={17} color={theme.textFaint} />
-            </TouchableOpacity>
-          ) : null}
+  const renderResult = ({ item }: { item: AnatomyTopic }) => (
+    <TouchableOpacity
+      style={[styles.resultCard, { backgroundColor: t.surface, borderColor: t.border }]}
+      onPress={() => navigation.navigate('TopicDetail', { topicId: item.id })}
+      activeOpacity={0.85}
+    >
+      <View style={[styles.resultEmoji, { backgroundColor: item.color + '20' }]}>
+        <Text style={styles.emoji}>{item.emoji}</Text>
+      </View>
+      <View style={styles.resultInfo}>
+        <Text style={[styles.resultTitle, { color: t.text }]} numberOfLines={1}>{item.title}</Text>
+        <Text style={[styles.resultSummary, { color: t.textSecondary }]} numberOfLines={2}>{item.summary}</Text>
+        <View style={styles.resultMeta}>
+          <Text style={[styles.resultCat, { color: t.textTertiary }]}>{item.category}</Text>
+          <Text style={[styles.resultLevel, { color: item.color }]}>{item.level}</Text>
         </View>
       </View>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 60 }}>
-        {q.trim().length === 0 ? (
-          <View style={{ marginTop: 14 }}>
-            <SectionTitle title="Try a popular query" icon="flash-outline" />
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-              {popular.map((p) => (
-                <Chip key={p} label={p} onPress={() => setQ(p)} />
-              ))}
+      <Ionicons name="chevron-forward" size={18} color={t.textTertiary} />
+    </TouchableOpacity>
+  );
+
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: t.background }]} edges={['top']}>
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={[styles.backBtn, { backgroundColor: t.surface, borderColor: t.border }]}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="arrow-back" size={22} color={t.text} />
+        </TouchableOpacity>
+        <View style={[styles.searchBox, { backgroundColor: t.surface, borderColor: t.border }]}>
+          <Ionicons name="search" size={20} color={t.textTertiary} />
+          <TextInput
+            style={[styles.searchInput, { color: t.text }]}
+            placeholder="Search anatomy, muscles, systems..."
+            placeholderTextColor={t.textTertiary}
+            value={query}
+            onChangeText={handleSearch}
+            autoFocus
+          />
+          {query.length > 0 && (
+            <TouchableOpacity onPress={() => handleSearch('')}>
+              <Ionicons name="close-circle" size={20} color={t.textTertiary} />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
+      <FlatList
+        data={results}
+        renderItem={renderResult}
+        keyExtractor={item => item.id}
+        contentContainerStyle={{ padding: 20, gap: 12 }}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          query.length > 1 ? (
+            <View style={styles.empty}>
+              <Ionicons name="search" size={48} color={t.textTertiary} />
+              <Text style={[styles.emptyTitle, { color: t.text }]}>No results found</Text>
+              <Text style={[styles.emptyText, { color: t.textSecondary }]}>
+                Try different keywords like "muscle", "heart", "protein", or "energy"
+              </Text>
             </View>
-            <Card style={{ marginTop: 16 }}>
-              <SectionTitle title="Quick links" icon="bookmark-outline" />
-              <TouchableOpacity onPress={() => navigation.navigate('BodyTab')} style={styles.quickRow}>
-                <Ionicons name="body-outline" size={18} color={theme.accent} />
-                <Text style={{ color: theme.text, fontSize: 14, flex: 1, marginLeft: 10 }}>Open the Anatomy Explorer</Text>
-                <Ionicons name="chevron-forward" size={16} color={theme.textFaint} />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => navigation.navigate('LearnTab')} style={styles.quickRow}>
-                <Ionicons name="book-outline" size={18} color={theme.accent} />
-                <Text style={{ color: theme.text, fontSize: 14, flex: 1, marginLeft: 10 }}>Continue a course or take a quiz</Text>
-                <Ionicons name="chevron-forward" size={16} color={theme.textFaint} />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => navigation.navigate('TutorTab')} style={styles.quickRow}>
-                <Ionicons name="chatbubbles-outline" size={18} color={theme.accent} />
-                <Text style={{ color: theme.text, fontSize: 14, flex: 1, marginLeft: 10 }}>Ask the ZION AI Tutor</Text>
-                <Ionicons name="chevron-forward" size={16} color={theme.textFaint} />
-              </TouchableOpacity>
-            </Card>
-          </View>
-        ) : results.length === 0 ? (
-          <EmptyState icon="search-outline" title="No matches" body="Try a different term — every structure, hormone, nutrient and supplement is searchable." />
-        ) : (
-          <View style={{ marginTop: 14 }}>
-            <SectionTitle title={`${results.length} result${results.length === 1 ? '' : 's'}`} icon="search-outline" />
-            {results.map((t) => (
-              <Card key={t.id} style={{ marginBottom: 9 }} onPress={() => navigation.navigate('Topic', { topicId: t.id })}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
-                  <Chip label={DOMAIN_LABELS[t.domain] ?? t.domain} color={theme.accent} />
-                  <Text style={{ color: theme.textFaint, fontSize: 10.5 }}>{t.level}</Text>
-                </View>
-                <Text style={{ color: theme.text, fontSize: 14.5, fontWeight: '800' }}>{t.title}</Text>
-                {t.subtitle ? <Text style={{ color: theme.accent, fontSize: 11.5, fontStyle: 'italic', marginTop: 1 }}>{t.subtitle}</Text> : null}
-                <Text numberOfLines={2} style={{ color: theme.textDim, fontSize: 12, lineHeight: 18, marginTop: 5 }}>{t.summary}</Text>
-              </Card>
-            ))}
-          </View>
-        )}
-      </ScrollView>
+          ) : (
+            <View style={styles.empty}>
+              <Ionicons name="search" size={48} color={t.textTertiary} />
+              <Text style={[styles.emptyTitle, { color: t.text }]}>Search Topics</Text>
+              <Text style={[styles.emptyText, { color: t.textSecondary }]}>
+                Find information about muscles, bones, systems, nutrition, and more
+              </Text>
+            </View>
+          )
+        }
+      />
     </SafeAreaView>
   );
 }
 
-const styles: any = { quickRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 } };
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, gap: 12 },
+  backBtn: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 1 },
+  searchBox: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1 },
+  searchInput: { flex: 1, fontSize: FontSizes.md, fontWeight: '500' },
+  resultCard: { flexDirection: 'row', alignItems: 'center', borderRadius: BorderRadius.md, padding: 14, borderWidth: 1, gap: 12 },
+  resultEmoji: { width: 48, height: 48, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  emoji: { fontSize: 24 },
+  resultInfo: { flex: 1 },
+  resultTitle: { fontSize: FontSizes.md, fontWeight: '700', marginBottom: 3 },
+  resultSummary: { fontSize: FontSizes.xs, lineHeight: 17, marginBottom: 6 },
+  resultMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  resultCat: { fontSize: FontSizes.xs, fontWeight: '500' },
+  resultLevel: { fontSize: FontSizes.xs, fontWeight: '700', textTransform: 'uppercase' },
+  empty: { alignItems: 'center', paddingTop: 60, gap: 12 },
+  emptyTitle: { fontSize: FontSizes.lg, fontWeight: '700' },
+  emptyText: { fontSize: FontSizes.sm, textAlign: 'center', lineHeight: 20 },
+});

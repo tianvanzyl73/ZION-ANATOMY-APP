@@ -1,86 +1,71 @@
-import { useColorScheme } from 'react-native';
-
-export const gold = '#D4AF37';
-export const goldSoft = '#E8CE7A';
-export const goldDeep = '#A8862B';
-
-export interface Theme {
-  dark: boolean;
-  bg: string;
-  bgElev: string;
-  bgCard: string;
-  bgCardAlt: string;
-  border: string;
-  borderSoft: string;
-  text: string;
-  textDim: string;
-  textFaint: string;
-  accent: string;
-  accentSoft: string;
-  accentBg: string;
-  good: string;
-  warn: string;
-  bad: string;
-  shadow: any;
-}
-
-export const darkTheme: Theme = {
-  dark: true,
-  bg: '#07070A',
-  bgElev: '#0E0E13',
-  bgCard: '#141419',
-  bgCardAlt: '#1B1B22',
-  border: '#26262F',
-  borderSoft: '#1D1D25',
-  text: '#F5F5F7',
-  textDim: '#A9A9B4',
-  textFaint: '#6B6B77',
-  accent: gold,
-  accentSoft: goldSoft,
-  accentBg: 'rgba(212,175,55,0.12)',
-  good: '#5AC8A8',
-  warn: '#E0B15E',
-  bad: '#E07A7A',
-  shadow: {
-    shadowColor: '#000',
-    shadowOpacity: 0.5,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 8,
+export const Colors = {
+  dark: {
+    background: '#0A0A0A',
+    surface: '#141414',
+    surfaceElevated: '#1E1E1E',
+    surfaceHover: '#252525',
+    border: '#2A2A2A',
+    borderLight: '#333333',
+    text: '#FFFFFF',
+    textSecondary: '#A0A0A0',
+    textTertiary: '#666666',
+    accent: '#D4AF37',
+    accentLight: '#F4D03F',
+    accentDark: '#B8960C',
+    success: '#00C853',
+    error: '#FF5252',
+    warning: '#FFB300',
+    info: '#448AFF',
+    gradient: ['#D4AF37', '#F4D03F'],
+    cardShadow: 'rgba(0,0,0,0.5)',
+  },
+  light: {
+    background: '#FAFAFA',
+    surface: '#FFFFFF',
+    surfaceElevated: '#F5F5F5',
+    surfaceHover: '#EEEEEE',
+    border: '#E0E0E0',
+    borderLight: '#EEEEEE',
+    text: '#1A1A1A',
+    textSecondary: '#666666',
+    textTertiary: '#999999',
+    accent: '#B8960C',
+    accentLight: '#D4AF37',
+    accentDark: '#8B7200',
+    success: '#00C853',
+    error: '#FF5252',
+    warning: '#FFB300',
+    info: '#448AFF',
+    gradient: ['#B8960C', '#D4AF37'],
+    cardShadow: 'rgba(0,0,0,0.08)',
   },
 };
 
-export const lightTheme: Theme = {
-  dark: false,
-  bg: '#FAFAF8',
-  bgElev: '#FFFFFF',
-  bgCard: '#FFFFFF',
-  bgCardAlt: '#F2F1EC',
-  border: '#E2E0D8',
-  borderSoft: '#EDEBE4',
-  text: '#111114',
-  textDim: '#5C5C66',
-  textFaint: '#9A9AA4',
-  accent: goldDeep,
-  accentSoft: '#B99334',
-  accentBg: 'rgba(168,134,43,0.10)',
-  good: '#1F8A6D',
-  warn: '#A9762A',
-  bad: '#B84A4A',
-  shadow: {
-    shadowColor: '#3A3620',
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
-  },
+export const Spacing = {
+  xs: 4,
+  sm: 8,
+  md: 16,
+  lg: 24,
+  xl: 32,
+  xxl: 48,
 };
 
-export function makeTheme(dark: boolean): Theme {
-  return dark ? darkTheme : lightTheme;
-}
+export const BorderRadius = {
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 24,
+  full: 9999,
+};
 
-export function useSystemTheme(): Theme {
-  const scheme = useColorScheme();
-  return makeTheme(scheme === 'dark');
-}
+export const FontSizes = {
+  xs: 11,
+  sm: 13,
+  md: 15,
+  lg: 18,
+  xl: 24,
+  xxl: 32,
+  xxxl: 42,
+};
+
+export type Theme = typeof Colors.dark;
