@@ -17,7 +17,7 @@
         "monochromeImage": "./assets/android-icon-monochrome.png",
         "backgroundImage": "./assets/android-icon-background.png"
       },
-      "package":"com.zopn.anatomy",
+      "package":"com.zion.anatomy",
       "versionCode":1,
       "predictiveBackGestureEnabled":false
     },
