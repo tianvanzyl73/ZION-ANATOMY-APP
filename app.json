@@ -9,7 +9,13 @@
     "ios": {
       "supportsTablet": true
     },
+    "expo":{
+      "icon": "./assets/icon.png",
     "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png",
+        "backgroundImage": "./assets/android-icon-background.png"
       "package":"com.zopn.anatomy",
       "versionCode":1,
       "predictiveBackGestureEnabled":false
