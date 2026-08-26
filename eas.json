@@ -6,7 +6,7 @@
   "build": {
   "production":{
    "developmentClient":false,
-      "distribution":"internal"
+      "distribution":"store"
     },
     "development":{
       "developmentClient":true,
