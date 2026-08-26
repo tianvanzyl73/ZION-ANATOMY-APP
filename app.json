@@ -6,23 +6,26 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    
     "ios": {
       "supportsTablet": true
     },
-    "expo":{
-      "icon": "./assets/icon.png",
+  
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
         "monochromeImage": "./assets/android-icon-monochrome.png",
         "backgroundImage": "./assets/android-icon-background.png"
+      },
       "package":"com.zopn.anatomy",
       "versionCode":1,
       "predictiveBackGestureEnabled":false
     },
+    
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    
     "extra": {
       "eas": {
         "projectId": "a35ec727-8776-4b45-9b4a-b65d5a1cd4d7"
@@ -31,10 +34,13 @@
     "updates": {
       "url": "https://u.expo.dev/a35ec727-8776-4b45-9b4a-b65d5a1cd4d7"
     },
+    
     "runtimeVersion": {
       "policy": "appVersion"
     },
+    
     "owner": "tianvanzyls-team",
+    
     "platforms": [
       "ios",
       "android",
