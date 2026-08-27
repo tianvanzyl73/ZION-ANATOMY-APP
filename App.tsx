@@ -20,7 +20,6 @@ import ProfileScreen from './screens/ProfileScreen';
 import TopicListScreen from './screens/TopicListScreen';
 import BookmarksScreen from './screens/BookmarksScreen';
 import SubscriptionScreen from './screens/SubscriptionScreen';
-import PaymentScreen from './screens/PaymentScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -76,7 +75,6 @@ export default function App() {
             <Stack.Screen name="TopicList" component={TopicListScreen} />
             <Stack.Screen name="Bookmarks" component={BookmarksScreen} />
             <Stack.Screen name="Subscription" component={SubscriptionScreen} />
-            <Stack.Screen name="Payment" component={PaymentScreen} />
           </Stack.Navigator>
         </NavigationContainer>
       </SafeAreaProvider>
