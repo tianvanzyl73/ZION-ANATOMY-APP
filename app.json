@@ -42,7 +42,8 @@
     "plugins": [
       "expo-font",
       "expo-secure-store",
-      "expo-iap"
+      "expo-iap",
+      "expo-notifications"
     ]
   }
 }

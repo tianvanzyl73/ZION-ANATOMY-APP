@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -8,6 +8,8 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { SubscriptionProvider } from './contexts/SubscriptionContext';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
+import { getSettings } from './lib/store';
+import { syncNotificationSchedule } from './lib/notifications';
 
 import DashboardScreen from './screens/DashboardScreen';
 import ExplorerScreen from './screens/ExplorerScreen';
@@ -28,6 +30,18 @@ function AppContent() {
   // fallback before that setting has loaded) -- not the raw OS scheme alone,
   // so the in-app toggle in Profile actually has an effect app-wide.
   const { isDark } = useTheme();
+
+  // Reconcile the notification schedule with the saved setting once on
+  // startup -- covers a fresh install (where `notifications` defaults to
+  // true but nothing has been scheduled or permitted yet) and any case
+  // where a previous session's schedule didn't stick. This intentionally
+  // does not force-flip the stored setting if permission is denied; the
+  // Profile toggle handles that correction the next time the user visits it.
+  useEffect(() => {
+    getSettings().then((s) => {
+      syncNotificationSchedule(s.notifications).catch(() => {});
+    });
+  }, []);
 
   const navTheme = isDark
     ? {
