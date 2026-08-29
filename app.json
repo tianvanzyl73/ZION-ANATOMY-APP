@@ -12,8 +12,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png",
-        "backgroundImage": "./assets/android-icon-background.png"
+        "backgroundColor": "#0A0A0A"
       },
       "package": "com.zion.anatomy",
       "versionCode": 1,
