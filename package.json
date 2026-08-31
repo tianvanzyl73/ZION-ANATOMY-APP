@@ -1,6 +1,6 @@
 {
   "name": "zion-anatomy",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "main": "index.ts",
   "dependencies": {
     "@expo/metro-runtime": "~57.0.9",
