@@ -677,4 +677,3 @@ export const useSubscription = () => {
 
   return context;
 };
-```
