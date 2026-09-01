@@ -45,38 +45,34 @@ const defaultSubscription: Subscription = {
 
 /*
  * IMPORTANT:
- * These are temporary product IDs.
  *
- * Once you create the subscriptions in Google Play Console,
- * replace these four values with the EXACT Product IDs from Play Console.
+ * These are the REAL Google Play subscription Product IDs.
+ *
+ * Google Play structure:
+ *
+ * zion_advanced
+ *   ├── monthly  -> R80
+ *   └── yearly   -> R300
+ *
+ * zion_expert
+ *   ├── monthly  -> R150
+ *   └── yearly   -> R500
  */
 const PRODUCT_IDS = {
-  advancedMonthly: 'advanced_monthly',
-  advancedYearly: 'advanced_yearly',
-  expertMonthly: 'expert_monthly',
-  expertYearly: 'expert_yearly',
+  advanced: 'zion_advanced',
+  expert: 'zion_expert',
 } as const;
 
-const PRODUCT_TO_PLAN: Record<
+/*
+ * Maps Google Play subscription Product IDs to our
+ * internal subscription tiers.
+ */
+const PRODUCT_TO_TIER: Record<
   string,
-  { tier: SubscriptionTier; cycle: BillingCycle }
+  SubscriptionTier
 > = {
-  [PRODUCT_IDS.advancedMonthly]: {
-    tier: 'advanced',
-    cycle: 'monthly',
-  },
-  [PRODUCT_IDS.advancedYearly]: {
-    tier: 'advanced',
-    cycle: 'yearly',
-  },
-  [PRODUCT_IDS.expertMonthly]: {
-    tier: 'expert',
-    cycle: 'monthly',
-  },
-  [PRODUCT_IDS.expertYearly]: {
-    tier: 'expert',
-    cycle: 'yearly',
-  },
+  [PRODUCT_IDS.advanced]: 'advanced',
+  [PRODUCT_IDS.expert]: 'expert',
 };
 
 const STORAGE_KEY = '@zion_anatomy_subscription';
@@ -84,19 +80,14 @@ const STORAGE_KEY = '@zion_anatomy_subscription';
 const SubscriptionContext =
   createContext<SubscriptionContextType | undefined>(undefined);
 
-export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({
-  children,
-}) => {
+export const SubscriptionProvider: React.FC<{
+  children: ReactNode;
+}> = ({ children }) => {
   const [subscription, setSubscription] =
     useState<Subscription>(defaultSubscription);
 
   const [loading, setLoading] = useState(true);
 
-  /*
-   * Google Play / App Store connection.
-   *
-   * Purchase results are delivered through onPurchaseSuccess.
-   */
   const {
     connected: iapConnected,
     subscriptions: iapSubscriptions,
@@ -105,6 +96,14 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({
     finishTransaction,
     getAvailablePurchases,
   } = useIAP({
+    /*
+     * Purchase completed successfully.
+     *
+     * IMPORTANT:
+     * For production, Google Play purchase tokens should be
+     * verified by a secure backend before granting permanent
+     * premium access.
+     */
     onPurchaseSuccess: async (purchase) => {
       try {
         console.log(
@@ -114,9 +113,9 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({
 
         const productId = purchase.productId;
 
-        const plan = PRODUCT_TO_PLAN[productId];
+        const tier = PRODUCT_TO_TIER[productId];
 
-        if (!plan) {
+        if (!tier) {
           console.warn(
             '[ZION IAP] Unknown subscription product:',
             productId
@@ -125,27 +124,51 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({
         }
 
         /*
-         * IMPORTANT:
+         * Determine the billing cycle from the Android
+         * subscription offer that was purchased.
          *
-         * For production, this purchase must be verified on a secure
-         * backend before premium access is permanently granted.
-         *
-         * We are storing the purchase locally here as an entitlement
-         * cache so we can continue building/testing the Play Billing flow.
+         * Google Play identifies the actual base plan
+         * through the offer/base-plan information.
          */
+        let billingCycle: BillingCycle = 'monthly';
 
+        const purchaseAny = purchase as any;
+
+        const purchasedOffer =
+          purchaseAny.subscriptionOfferDetailsAndroid ??
+          purchaseAny.offerDetailsAndroid ??
+          purchaseAny.offerDetails ??
+          [];
+
+        if (Array.isArray(purchasedOffer)) {
+          const offerText = JSON.stringify(purchasedOffer).toLowerCase();
+
+          if (
+            offerText.includes('year') ||
+            offerText.includes('annual')
+          ) {
+            billingCycle = 'yearly';
+          }
+        }
+
+        /*
+         * Temporary local entitlement cache.
+         *
+         * The real Google Play subscription status should
+         * eventually be verified server-side.
+         */
         const now = new Date();
         const endDate = new Date();
 
-        if (plan.cycle === 'monthly') {
+        if (billingCycle === 'monthly') {
           endDate.setMonth(endDate.getMonth() + 1);
         } else {
           endDate.setFullYear(endDate.getFullYear() + 1);
         }
 
         const newSubscription: Subscription = {
-          tier: plan.tier,
-          billingCycle: plan.cycle,
+          tier,
+          billingCycle,
           startDate: now.toISOString(),
           endDate: endDate.toISOString(),
           isActive: true,
@@ -161,16 +184,16 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({
         setSubscription(newSubscription);
 
         /*
-         * Subscriptions are NOT consumables.
-         *
-         * finishTransaction must be called after successful processing.
+         * Subscriptions are not consumables.
          */
         await finishTransaction({
           purchase,
           isConsumable: false,
         });
 
-        console.log('[ZION IAP] Transaction finished successfully.');
+        console.log(
+          '[ZION IAP] Transaction finished successfully.'
+        );
       } catch (error) {
         console.error(
           '[ZION IAP] Error processing purchase:',
@@ -180,19 +203,22 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({
     },
 
     onPurchaseError: (error) => {
-      console.error('[ZION IAP] Purchase error:', error);
+      console.error(
+        '[ZION IAP] Purchase error:',
+        error
+      );
     },
   });
 
   /*
-   * Load the locally cached subscription.
+   * Load locally cached subscription.
    */
   useEffect(() => {
     loadSubscription();
   }, []);
 
   /*
-   * Load available subscriptions from Google Play.
+   * Load the actual Google Play subscription products.
    */
   useEffect(() => {
     if (!iapConnected || Platform.OS !== 'android') {
@@ -203,7 +229,7 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({
   }, [iapConnected]);
 
   /*
-   * Restore previous purchases when the IAP connection is ready.
+   * Restore previous purchases.
    */
   useEffect(() => {
     if (!iapConnected || Platform.OS !== 'android') {
@@ -213,9 +239,13 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({
     restorePurchases();
   }, [iapConnected]);
 
+  /*
+   * Load local subscription cache.
+   */
   const loadSubscription = async () => {
     try {
-      const stored = await AsyncStorage.getItem(STORAGE_KEY);
+      const stored =
+        await AsyncStorage.getItem(STORAGE_KEY);
 
       if (!stored) {
         setSubscription(defaultSubscription);
@@ -246,15 +276,25 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({
     }
   };
 
+  /*
+   * Fetch the two REAL Google Play subscriptions.
+   */
   const loadIAPProducts = async () => {
     try {
       await fetchProducts({
-        skus: Object.values(PRODUCT_IDS),
+        skus: [
+          PRODUCT_IDS.advanced,
+          PRODUCT_IDS.expert,
+        ],
         type: 'subs',
       });
 
       console.log(
-        '[ZION IAP] Google Play subscriptions loaded.'
+        '[ZION IAP] Google Play subscriptions loaded:',
+        [
+          PRODUCT_IDS.advanced,
+          PRODUCT_IDS.expert,
+        ]
       );
     } catch (error) {
       console.error(
@@ -264,6 +304,9 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({
     }
   };
 
+  /*
+   * Restore previous Google Play purchases.
+   */
   const restorePurchases = async () => {
     try {
       const purchases = await getAvailablePurchases();
@@ -273,15 +316,14 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({
       }
 
       /*
-       * Find the most recent ZION Anatomy subscription purchase.
+       * Find a purchase belonging to one of our
+       * real Google Play subscription products.
        */
       const validPurchase = [...purchases]
         .reverse()
-        .find((purchase) =>
-          Object.prototype.hasOwnProperty.call(
-            PRODUCT_TO_PLAN,
-            purchase.productId
-          )
+        .find(
+          (purchase) =>
+            PRODUCT_TO_TIER[purchase.productId]
         );
 
       if (!validPurchase) {
@@ -289,21 +331,25 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({
       }
 
       const productId = validPurchase.productId;
-      const plan = PRODUCT_TO_PLAN[productId];
 
-      if (!plan) {
+      const tier =
+        PRODUCT_TO_TIER[productId];
+
+      if (!tier) {
         return;
       }
 
-      const stored = await AsyncStorage.getItem(STORAGE_KEY);
-
       /*
-       * If we already have a valid local entitlement, don't
-       * overwrite it unnecessarily.
+       * If we already have a valid local entitlement
+       * for this product, keep it.
        */
+      const stored =
+        await AsyncStorage.getItem(STORAGE_KEY);
+
       if (stored) {
         try {
-          const parsed: Subscription = JSON.parse(stored);
+          const parsed: Subscription =
+            JSON.parse(stored);
 
           if (
             parsed.isActive &&
@@ -315,41 +361,63 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({
             return;
           }
         } catch {
-          // Continue and rebuild the local entitlement.
+          // Rebuild entitlement below.
         }
       }
 
       /*
-       * Local restoration cache.
-       *
-       * Final production implementation should verify the
-       * purchase token with Google Play on a secure backend.
+       * Determine cycle from the available subscription
+       * information when possible.
        */
+      let billingCycle: BillingCycle = 'monthly';
+
+      const purchaseAny =
+        validPurchase as any;
+
+      const purchaseText =
+        JSON.stringify(purchaseAny).toLowerCase();
+
+      if (
+        purchaseText.includes('year') ||
+        purchaseText.includes('annual')
+      ) {
+        billingCycle = 'yearly';
+      }
+
       const now = new Date();
       const endDate = new Date();
 
-      if (plan.cycle === 'monthly') {
-        endDate.setMonth(endDate.getMonth() + 1);
+      if (billingCycle === 'monthly') {
+        endDate.setMonth(
+          endDate.getMonth() + 1
+        );
       } else {
-        endDate.setFullYear(endDate.getFullYear() + 1);
+        endDate.setFullYear(
+          endDate.getFullYear() + 1
+        );
       }
 
       const restoredSubscription: Subscription = {
-        tier: plan.tier,
-        billingCycle: plan.cycle,
+        tier,
+        billingCycle,
         startDate: now.toISOString(),
         endDate: endDate.toISOString(),
         isActive: true,
         productId,
-        purchaseToken: validPurchase.purchaseToken,
+        purchaseToken:
+          validPurchase.purchaseToken,
       };
 
       await AsyncStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify(restoredSubscription)
+        JSON.stringify(
+          restoredSubscription
+        )
       );
 
-      setSubscription(restoredSubscription);
+      setSubscription(
+        restoredSubscription
+      );
     } catch (error) {
       console.error(
         '[ZION IAP] Error restoring purchases:',
@@ -359,7 +427,16 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({
   };
 
   /*
-   * Start the REAL Google Play subscription purchase.
+   * Start a REAL Google Play subscription purchase.
+   *
+   * IMPORTANT:
+   *
+   * tier + cycle are converted into:
+   *
+   * Advanced monthly -> zion_advanced + monthly offer
+   * Advanced yearly  -> zion_advanced + yearly offer
+   * Expert monthly   -> zion_expert + monthly offer
+   * Expert yearly    -> zion_expert + yearly offer
    */
   const upgradeSubscription = async (
     tier: SubscriptionTier,
@@ -385,63 +462,94 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({
 
     const productId =
       tier === 'advanced'
-        ? cycle === 'monthly'
-          ? PRODUCT_IDS.advancedMonthly
-          : PRODUCT_IDS.advancedYearly
-        : cycle === 'monthly'
-          ? PRODUCT_IDS.expertMonthly
-          : PRODUCT_IDS.expertYearly;
+        ? PRODUCT_IDS.advanced
+        : PRODUCT_IDS.expert;
 
     /*
-     * Find the subscription returned by Google Play.
+     * Find the Google Play subscription product.
      */
-    const subscriptionProduct = iapSubscriptions.find(
-      (product) => product.id === productId
-    );
+    let subscriptionProduct =
+      iapSubscriptions.find(
+        (product) =>
+          product.id === productId
+      );
 
+    /*
+     * If it wasn't loaded yet, request it again.
+     */
     if (!subscriptionProduct) {
-      /*
-       * Refresh the products once in case they were not loaded yet.
-       */
       await fetchProducts({
-        skus: Object.values(PRODUCT_IDS),
+        skus: [productId],
         type: 'subs',
       });
 
+      /*
+       * The hook updates iapSubscriptions
+       * asynchronously, so the user may need to
+       * retry if the product was not available yet.
+       */
+      subscriptionProduct =
+        iapSubscriptions.find(
+          (product) =>
+            product.id === productId
+        );
+    }
+
+    if (!subscriptionProduct) {
       throw new Error(
-        `Subscription "${productId}" was not found in Google Play.`
+        `Google Play subscription "${productId}" was not found.`
       );
     }
 
     /*
-     * Google Play requires an offer token for subscription purchases.
+     * Google Play returns the available base plans
+     * as subscription offers.
      */
     const offers =
-      (subscriptionProduct as any)
-        .subscriptionOfferDetailsAndroid ?? [];
+      (
+        subscriptionProduct as any
+      ).subscriptionOfferDetailsAndroid ??
+      [];
 
     if (!offers.length) {
       throw new Error(
-        `No Google Play subscription offer is available for "${productId}".`
+        `No Google Play offers are available for "${productId}". Make sure the base plans are active.`
       );
     }
 
-    const offerToken = offers[0]?.offerToken;
+    /*
+     * Try to find the requested base plan.
+     *
+     * Google Play normally exposes basePlanId
+     * inside the offer details.
+     */
+    const matchingOffer =
+      offers.find((offer: any) => {
+        const basePlanId =
+          offer.basePlanId ??
+          offer.basePlanID ??
+          offer.basePlan;
+
+        return (
+          basePlanId === cycle
+        );
+      }) ?? offers[0];
+
+    const offerToken =
+      matchingOffer?.offerToken;
 
     if (!offerToken) {
       throw new Error(
-        `Google Play did not provide an offer token for "${productId}".`
+        `Google Play did not provide an offer token for ${productId} (${cycle}).`
       );
     }
 
     console.log(
-      `[ZION IAP] Starting purchase: ${productId}`
+      `[ZION IAP] Starting purchase: ${productId} / ${cycle}`
     );
 
     /*
-     * This opens the REAL Google Play billing interface.
-     *
-     * The result is handled by onPurchaseSuccess above.
+     * Open the REAL Google Play billing screen.
      */
     await requestPurchase({
       request: {
@@ -460,16 +568,19 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({
   };
 
   /*
-   * Clear only the LOCAL cached entitlement.
+   * Clear only the local subscription cache.
    *
-   * IMPORTANT:
-   * This does NOT cancel the user's Google Play subscription.
-   * Actual cancellation must happen through Google Play.
+   * This does NOT cancel the Google Play subscription.
    */
   const cancelSubscription = async () => {
     try {
-      await AsyncStorage.removeItem(STORAGE_KEY);
-      setSubscription(defaultSubscription);
+      await AsyncStorage.removeItem(
+        STORAGE_KEY
+      );
+
+      setSubscription(
+        defaultSubscription
+      );
     } catch (error) {
       console.error(
         '[ZION IAP] Error clearing local subscription:',
@@ -480,22 +591,34 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({
     }
   };
 
-  const hasAccess = (requiredLevel: string): boolean => {
-    const levelHierarchy: Record<string, number> = {
+  /*
+   * Access control.
+   */
+  const hasAccess = (
+    requiredLevel: string
+  ): boolean => {
+    const levelHierarchy: Record<
+      string,
+      number
+    > = {
       beginner: 1,
       intermediate: 2,
       advanced: 3,
       expert: 4,
     };
 
-    const tierAccess: Record<SubscriptionTier, number> = {
+    const tierAccess: Record<
+      SubscriptionTier,
+      number
+    > = {
       free: 2,
       advanced: 3,
       expert: 4,
     };
 
     /*
-     * Free users get beginner/intermediate.
+     * Free users:
+     * beginner + intermediate
      */
     if (!subscription.isActive) {
       return (
@@ -505,12 +628,18 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({
     }
 
     const requiredAccess =
-      levelHierarchy[requiredLevel] ?? 1;
+      levelHierarchy[
+        requiredLevel
+      ] ?? 1;
 
     const userAccess =
-      tierAccess[subscription.tier];
+      tierAccess[
+        subscription.tier
+      ];
 
-    return userAccess >= requiredAccess;
+    return (
+      userAccess >= requiredAccess
+    );
   };
 
   const isPremium =
@@ -535,7 +664,10 @@ export const SubscriptionProvider: React.FC<{ children: ReactNode }> = ({
 };
 
 export const useSubscription = () => {
-  const context = useContext(SubscriptionContext);
+  const context =
+    useContext(
+      SubscriptionContext
+    );
 
   if (!context) {
     throw new Error(
@@ -545,3 +677,4 @@ export const useSubscription = () => {
 
   return context;
 };
+```
