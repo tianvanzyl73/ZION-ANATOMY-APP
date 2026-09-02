@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "ZION Anatomy",
-    "slug": "zion-anatomy",
+    "slug": "zion-anatomy-jdlzlzy9s80cvtd53s3mk",
     "version": "2.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -42,7 +42,8 @@
       "expo-font",
       "expo-secure-store",
       "expo-iap",
-      "expo-notifications"
+      "expo-notifications",
+      "expo-image"
     ]
   }
 }
